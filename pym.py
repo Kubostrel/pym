@@ -2,6 +2,7 @@
 """
 pym — Python Process Manager
 Like PM2, but for Python scripts on Ubuntu Server.
+GitHub: https://github.com/Kubostrel/pym
 """
 
 import os, sys, json, signal, subprocess, time, datetime, textwrap
@@ -42,10 +43,10 @@ def _write_config(cfg: dict):
     CONFIG_FILE.write_text(json.dumps(cfg, indent=2, default=str))
 
 # ── Path helpers ──────────────────────────────────────────────────────────────
-def _pid_file(name):     return PIDS_DIR  / f"{name}.pid"
-def _log_file(name):     return LOGS_DIR  / f"{name}.log"
+def _pid_file(name):     return PIDS_DIR    / f"{name}.pid"
+def _log_file(name):     return LOGS_DIR    / f"{name}.log"
 def _script_file(name):  return SCRIPTS_DIR / f"{name}.py"
-def _wrapper_file(name): return PIDS_DIR  / f"_{name}_wrapper.sh"
+def _wrapper_file(name): return PIDS_DIR    / f"_{name}_wrapper.sh"
 
 def _get_pid(name) -> "int | None":
     try:
@@ -73,7 +74,7 @@ def _uptime(iso: str) -> str:
     except Exception:
         return "?"
 
-# ── Bash wrapper template (auto-restart on crash) ─────────────────────────────
+# ── Bash wrapper — auto-restarts the process on crash ─────────────────────────
 _WRAPPER = """\
 #!/usr/bin/env bash
 # pym auto-restart wrapper for: {name}
@@ -104,11 +105,9 @@ def _start(name: str, cfg: dict) -> bool:
     log     = _log_file(name)
     wrapper = _wrapper_file(name)
 
-    # Write the auto-restart shell wrapper
     wrapper.write_text(_WRAPPER.format(name=name, script=script, log=log))
     wrapper.chmod(0o755)
 
-    # Append separator to log
     with log.open("a") as f:
         ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"\n{'━'*52}\n[{ts}] pym start\n{'━'*52}\n")
@@ -139,7 +138,7 @@ def _stop(name: str):
     if pid and _is_alive(pid):
         try:
             os.killpg(os.getpgid(pid), signal.SIGTERM)
-            for _ in range(8):          # wait up to ~2.4s
+            for _ in range(8):
                 if not _is_alive(pid):
                     break
                 time.sleep(0.3)
@@ -159,14 +158,14 @@ def _stop(name: str):
 
 
 # ── Commands ──────────────────────────────────────────────────────────────────
-_STARTER_TEMPLATE = """\
-# {name}.py  ── managed by pym
-# Edit this file and save.  pym will start/restart the process automatically.
+_STARTER = """\
+# {name}.py — managed by pym
+# Edit this file and save. pym will start/restart automatically.
 
 import time
 
 def main():
-    print("Hello from {name}!")
+    print("Hello from {name}!", flush=True)
     # Your code here
     while True:
         time.sleep(10)
@@ -187,13 +186,13 @@ def do_add(name: str):
         return
 
     script = _script_file(name)
-    script.write_text(_STARTER_TEMPLATE.format(name=name))
+    script.write_text(_STARTER.format(name=name))
 
     editor = os.environ.get("EDITOR", "nano")
     print(grey(f"  ↗  Opening {editor} — save & exit to start '{name}'."))
     subprocess.run([editor, str(script)])
 
-    print(f"\n  Starting {bold(name)} …")
+    print(f"\n  Starting {bold(name)} ...")
     _start(name, cfg)
 
 
@@ -210,10 +209,10 @@ def do_edit(name: str):
 
     pid = _get_pid(name)
     if pid and _is_alive(pid):
-        print(f"\n  Restarting {bold(name)} …")
+        print(f"\n  Restarting {bold(name)} ...")
         _stop(name)
     else:
-        print(f"\n  Starting {bold(name)} …")
+        print(f"\n  Starting {bold(name)} ...")
 
     cfg[name]["restarts"] = cfg[name].get("restarts", 0) + 1
     _start(name, cfg)
@@ -225,7 +224,7 @@ def do_stop(target: str):
         print(grey("  No processes registered."))
         return
     if target == "all":
-        print("  Stopping all processes…")
+        print("  Stopping all processes...")
         for name in list(cfg):
             _stop(name)
     elif target in cfg:
@@ -262,29 +261,28 @@ def do_status():
         print(grey("  No processes yet. Run:  pym add <name>\n"))
         return
 
-    W = [24, 12, 8, 12, 10]   # column widths (visible chars)
+    W = [24, 12, 8, 12, 10]
     headers = ["NAME", "STATUS", "PID", "UPTIME", "RESTARTS"]
     sep = "  " + grey("─" * (sum(W) + len(W) * 2))
 
-    header_row = "  " + "  ".join(bold(h.ljust(w)) for h, w in zip(headers, W))
-    print(header_row)
+    print("  " + "  ".join(bold(h.ljust(w)) for h, w in zip(headers, W)))
     print(sep)
 
     for name, info in cfg.items():
         pid   = _get_pid(name)
         alive = _is_alive(pid)
 
-        # Build visible-width strings; colour codes don't count
-        name_s    = name[:W[0]].ljust(W[0])
-        if alive:
-            status_v  = "● online"
-            status_s  = green(status_v).ljust(W[1] + len(green("")) - len(status_v) + W[1])
-        else:
-            status_v  = "○ stopped"
-            status_s  = red(status_v).ljust(W[1] + len(red("")) - len(status_v) + W[1])
+        name_s = name[:W[0]].ljust(W[0])
 
-        pid_s     = (str(pid) if alive else grey("—")).ljust(W[2])
-        uptime_s  = (_uptime(info.get("started_at","")) if alive else grey("—")).ljust(W[3])
+        if alive:
+            status_v = "● online"
+            status_s = green(status_v).ljust(W[1] + len(green("")) - len(status_v) + W[1])
+        else:
+            status_v = "○ stopped"
+            status_s = red(status_v).ljust(W[1] + len(red("")) - len(status_v) + W[1])
+
+        pid_s    = (str(pid) if alive else grey("—")).ljust(W[2])
+        uptime_s = (_uptime(info.get("started_at", "")) if alive else grey("—")).ljust(W[3])
         restart_s = str(info.get("restarts", 0)).ljust(W[4])
 
         print(f"  {name_s}  {status_s}  {pid_s}  {uptime_s}  {restart_s}")
@@ -310,7 +308,7 @@ def do_logs(name: str):
 
 def do_help():
     print(f"""
-  {bold('PYM')} — Python Process Manager  {grey('v1.0')}
+  {bold('PYM')} — Python Process Manager  {grey('v1.0  github.com/Kubostrel/pym')}
 
   {bold('USAGE')}
     pym {cyan('add')} <name>        Create & start a new Python process
@@ -323,13 +321,13 @@ def do_help():
 
   {bold('FEATURES')}
     {green('●')} Processes {bold('auto-restart')} on crash (like PM2)
-    {green('●')} Scripts are stored in   {grey('~/.pym/scripts/<name>.py')}
-    {green('●')} Logs are stored in      {grey('~/.pym/logs/<name>.log')}
-    {green('●')} Set $EDITOR env var to use vim / micro / etc.
+    {green('●')} Scripts stored in   {grey('~/.pym/scripts/<name>.py')}
+    {green('●')} Logs stored in      {grey('~/.pym/logs/<name>.log')}
+    {green('●')} Set $EDITOR to use vim / micro / etc.
     {green('●')} Set $PYM_HOME to change the data directory
 
   {bold('QUICK START')}
-    pym add mybot          # create, edit and launch mybot
+    pym add mybot          # create, edit and launch
     pym status             # see all processes
     pym logs mybot         # watch live output
     pym stop mybot         # pause it
@@ -356,9 +354,8 @@ def main():
         if len(argv) < 2:
             print(red(f"  ✗ '{cmd}' requires a name argument."))
             return
-        arg = argv[1]
         {"add": do_add, "edit": do_edit, "stop": do_stop,
-         "delete": do_delete, "logs": do_logs}[cmd](arg)
+         "delete": do_delete, "logs": do_logs}[cmd](argv[1])
     else:
         do_status()
 
