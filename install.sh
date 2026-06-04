@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 #  pym installer
-#  instr:    curl -fsSL https://raw.githubusercontent.com/Kubostrel/pym/main/install.sh | bash
-#               wget -qO- https://raw.githubusercontent.com/Kubostrel/pym/main/install.sh | bash
+#  GitHub: https://github.com/Kubostrel/pym
+#
+#  Local:   bash install.sh
+#  Remote:  curl -fsSL https://raw.githubusercontent.com/Kubostrel/pym/main/install.sh | bash
+#           wget -qO- https://raw.githubusercontent.com/Kubostrel/pym/main/install.sh | bash
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-# ── Поменяй на свой репозиторий ───────────────────────────────────────────────
 GITHUB_USER="Kubostrel"
 GITHUB_REPO="pym"
 GITHUB_BRANCH="main"
 RAW_BASE="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}"
-# ─────────────────────────────────────────────────────────────────────────────
 
 DEST="/usr/local/bin/pym"
 TMP_PY="/tmp/pym_$$.py"
@@ -20,70 +21,70 @@ echo ""
 echo "  ┌─────────────────────────────────┐"
 echo "  │  pym — Python Process Manager   │"
 echo "  │         Installer v1.0          │"
+echo "  │   github.com/Kubostrel/pym      │"
 echo "  └─────────────────────────────────┘"
 echo ""
 
-# ── Проверка python3 ──────────────────────────────────────────────────────────
+# ── Check python3 ─────────────────────────────────────────────────────────────
 PY=$(command -v python3 2>/dev/null || true)
 if [[ -z "$PY" ]]; then
-    echo "  ✗ python3 не найден. Установи:"
+    echo "  ✗ python3 not found. Install it first:"
     echo "      sudo apt install python3"
     exit 1
 fi
 
-# ── Получаем pym.py: сначала ищем рядом, иначе скачиваем ─────────────────────
+# ── Get pym.py: use local file if present, otherwise download ─────────────────
 LOCAL_PY="$(cd "$(dirname "${BASH_SOURCE[0]:-/}")" 2>/dev/null && pwd)/pym.py"
 
 if [[ -f "$LOCAL_PY" ]]; then
-    echo "  ○ Использую локальный файл: $LOCAL_PY"
+    echo "  ○ Using local file: $LOCAL_PY"
     SRC="$LOCAL_PY"
 else
-    echo "  ↓ Скачиваю pym.py с GitHub…"
+    echo "  ↓ Downloading pym.py from GitHub..."
     if command -v curl &>/dev/null; then
         curl -fsSL "${RAW_BASE}/pym.py" -o "$TMP_PY"
     elif command -v wget &>/dev/null; then
         wget -qO "$TMP_PY" "${RAW_BASE}/pym.py"
     else
-        echo "  ✗ Нужен curl или wget"
+        echo "  ✗ curl or wget is required"
         exit 1
     fi
     SRC="$TMP_PY"
-    echo "  ✓ Скачано"
+    echo "  ✓ Downloaded"
 fi
 
 echo "  Python : $($PY --version)"
 echo "  Target : $DEST"
 echo ""
 
-# ── Установка ─────────────────────────────────────────────────────────────────
-_install() {
+# ── Install ───────────────────────────────────────────────────────────────────
+_do_install() {
     cp "$1" "$2"
     chmod +x "$2"
 }
 
 if [[ $EUID -eq 0 ]]; then
-    _install "$SRC" "$DEST"
+    _do_install "$SRC" "$DEST"
 else
-    echo "  → Нужен sudo для записи в $DEST"
-    sudo bash -c "_install() { cp \"\$1\" \"\$2\"; chmod +x \"\$2\"; }; _install '$SRC' '$DEST'"
+    echo "  → Needs sudo to write to $DEST"
+    sudo bash -c "_do_install() { cp \"\$1\" \"\$2\"; chmod +x \"\$2\"; }; _do_install '$SRC' '$DEST'"
 fi
 
-# Удаляем временный файл если скачивали
 [[ -f "$TMP_PY" ]] && rm -f "$TMP_PY"
 
-# ── Проверка ──────────────────────────────────────────────────────────────────
+# ── Verify ────────────────────────────────────────────────────────────────────
 if command -v pym &>/dev/null; then
-    echo "  ✓ pym успешно установлен!"
+    echo "  ✓ pym installed successfully!"
     echo ""
-    echo "  Начало работы:"
-    echo "    pym add mybot      # создать и запустить процесс"
-    echo "    pym status         # список всех процессов"
-    echo "    pym logs mybot     # живые логи"
+    echo "  Get started:"
+    echo "    pym add mybot      # create & start your first process"
+    echo "    pym status         # view all running processes"
+    echo "    pym logs mybot     # tail live output"
     echo ""
 else
-    echo "  ✓ Файл скопирован — но $DEST не в \$PATH."
-    echo "    Добавь в ~/.bashrc:"
+    echo "  ✓ File copied — but $DEST is not in your \$PATH."
+    echo "    Add this to ~/.bashrc:"
     echo "      export PATH=\"/usr/local/bin:\$PATH\""
-    echo "    Затем: source ~/.bashrc"
+    echo "    Then run: source ~/.bashrc"
     echo ""
 fi
