@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 #  pym uninstaller
+#  GitHub: https://github.com/Kubostrel/pym
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -13,7 +14,7 @@ echo ""
 
 # Stop all running processes first
 if command -v pym &>/dev/null && [[ -f "$PYM_DIR/config.json" ]]; then
-    echo "  Stopping all pym processes…"
+    echo "  Stopping all pym processes..."
     pym stop all 2>/dev/null || true
 fi
 
