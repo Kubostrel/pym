@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-#  pym installer — работает и локально, и через curl/wget
-#
-#  Локально:    bash install.sh
-#  Удалённо:    curl -fsSL https://raw.githubusercontent.com/YOUR/pym/main/install.sh | bash
-#               wget -qO- https://raw.githubusercontent.com/YOUR/pym/main/install.sh | bash
+#  pym installer
+#  instr:    curl -fsSL https://raw.githubusercontent.com/Kubostrel/pym/main/install.sh | bash
+#               wget -qO- https://raw.githubusercontent.com/Kubostrel/pym/main/install.sh | bash
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 # ── Поменяй на свой репозиторий ───────────────────────────────────────────────
-GITHUB_USER="YOUR_USERNAME"
+GITHUB_USER="Kubostrel"
 GITHUB_REPO="pym"
 GITHUB_BRANCH="main"
 RAW_BASE="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}"
